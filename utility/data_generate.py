@@ -7,7 +7,7 @@ from numpy import linalg as LA
 from scipy.integrate import simps
 import matplotlib.pyplot as plt
 #this is specific for stop and go fMRI data
-def CDN_generate(seed, n_area=6, SNR=0, A_u=True, B_u=True, C_u=True, D_u=True):
+def CDN_generate(seed, n_area=6, SNR=0, A_u=True, B_u=True, C_u=True, D_u=True, which_data=-1):
 
     """ define a function to generate data from CDN model, please download precomp_0.Rdata 
     para: seed for random number
@@ -17,6 +17,7 @@ def CDN_generate(seed, n_area=6, SNR=0, A_u=True, B_u=True, C_u=True, D_u=True):
           B_u: ...
           C_u: ...
           D_u: ... 
+          which_data: 1 (negative definite matrix), 2 (total random with negative eigenvalues), 3 (antisymmetric), -1 (default, random select one scenario)
     return: fmri data(dimension: n_area * length), stimuli(dimension: J * length)), A, B, C, D
     length means the length of time series
     """
@@ -47,24 +48,34 @@ def CDN_generate(seed, n_area=6, SNR=0, A_u=True, B_u=True, C_u=True, D_u=True):
         sparsity = np.random.uniform(0.1, 0.7) 
         lower_b = np.random.uniform(-0.1, 0.1)
         upper_b = np.random.uniform(lower_b, 0.1)
-        which_kind = np.random.rand()
-        if which_kind<1.0/3:
-            tmp = -make_sparse_spd_matrix(n_area, 1-sparsity, smallest_coef=lower_b, largest_coef=upper_b)
-        elif which_kind<2.0/3:
-            while True:
-                lower_b = np.random.uniform(-0.1, 0.1)
-                upper_b=np.random.uniform(lower_b, 0.1)
-                tmp = np.random.uniform(-1, 1, (n_area, n_area))
-                tmp = tmp-np.sort(np.real(LA.eig(tmp)[0]))[-1] * np.eye(n_area)
-                fmax = np.amax(tmp)
-                fmin = np.amin(tmp)
-                tmp=(upper_b-lower_b) / (fmax - fmin) * tmp + (lower_b * fmax - upper_b * fmin) / (fmax - fmin)
-                if np.sort(np.real(LA.eig(tmp)[0]))[-1]<=0:
-                    break
+       
+        if which_data == 1:
+            which_kind = 1.0 / 6
+        elif which_data == 2:
+            which_kind = 1.0 / 2
+        elif which_data == 3:
+            which_kind = 5.0 / 6
         else:
+            which_kind = np.random.rand()
+            
+
+        if which_kind<1.0 / 3:
+            tmp = -make_sparse_spd_matrix(n_area, 1-sparsity, smallest_coef=lower_b, largest_coef=upper_b)
+	elif which_kind<2.0/3:
+            while True:
+		lower_b = np.random.uniform(-0.1, 0.1)
+		upper_b=np.random.uniform(lower_b, 0.1)
+		tmp = np.random.uniform(-1, 1, (n_area,n_area))
+		tmp = tmp-np.sort(np.real(LA.eig(tmp)[0]))[-1] * np.eye(n_area)
+		fmax = np.amax(tmp)
+		fmin = np.amin(tmp)
+		tmp = (upper_b-lower_b) / (fmax - fmin) * tmp + (lower_b * fmax - upper_b * fmin) / (fmax - fmin)
+		if np.sort(np.real(LA.eig(tmp)[0]))[-1] <= 0:
+		    break
+	else:
             tmp = np.random.uniform(-1, 1, (n_area,n_area))
-            tmp = (tmp - tmp.T) / 2
-            tmp=abs(lower_b) / np.amax(abs(tmp)) * tmp
+	    tmp = (tmp - tmp.T) / 2
+	    tmp=abs(lower_b) / np.amax(abs(tmp)) * tmp
         return tmp
 
     A = np.zeros((n_area,n_area))
