@@ -6,6 +6,7 @@ from sklearn.datasets import make_sparse_spd_matrix
 from numpy import linalg as LA
 from scipy.integrate import simps
 import matplotlib.pyplot as plt
+import scipy.sparse as sp
 #this is specific for stop and go fMRI data
 def CDN_generate(seed, n_area=6, SNR=0, A_u=True, B_u=True, C_u=True, D_u=True, which_data=-1):
 
@@ -58,22 +59,26 @@ def CDN_generate(seed, n_area=6, SNR=0, A_u=True, B_u=True, C_u=True, D_u=True, 
         else:
             which_kind = np.random.rand()
             
-
-        if which_kind<1.0 / 3:
-            tmp = -make_sparse_spd_matrix(n_area, 1-sparsity, smallest_coef=lower_b, largest_coef=upper_b)
-	elif which_kind<2.0/3:
+        def rand_1(n):
+            return np.random.uniform(-1, 1, n)
+        if which_kind < 1.0 / 3:
+            tmp = -make_sparse_spd_matrix(n_area, 1 - sparsity, smallest_coef=lower_b, largest_coef=upper_b)
+	elif which_kind < 2.0 / 3:
             while True:
 		lower_b = np.random.uniform(-0.1, 0.1)
-		upper_b=np.random.uniform(lower_b, 0.1)
+		upper_b = np.random.uniform(lower_b, 0.1)
 		tmp = np.random.uniform(-1, 1, (n_area,n_area))
-		tmp = tmp-np.sort(np.real(LA.eig(tmp)[0]))[-1] * np.eye(n_area)
+                
+		tmp = tmp - np.sort(np.real(LA.eig(tmp)[0]))[-1] * np.eye(n_area)
 		fmax = np.amax(tmp)
 		fmin = np.amin(tmp)
 		tmp = (upper_b-lower_b) / (fmax - fmin) * tmp + (lower_b * fmax - upper_b * fmin) / (fmax - fmin)
+                tmp = (abs(sp.random(n_area, n_area, density=sparsity).A) > 0) * tmp
 		if np.sort(np.real(LA.eig(tmp)[0]))[-1] <= 0:
 		    break
 	else:
-            tmp = np.random.uniform(-1, 1, (n_area,n_area))
+            #tmp = np.random.uniform(-1, 1, (n_area,n_area))
+            tmp = sp.random(n_area, n_area, density=sparsity, data_rvs=rand_1).A
 	    tmp = (tmp - tmp.T) / 2
 	    tmp=abs(lower_b) / np.amax(abs(tmp)) * tmp
         return tmp
