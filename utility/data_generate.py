@@ -8,10 +8,11 @@ from scipy.integrate import simps
 import matplotlib.pyplot as plt
 import scipy.sparse as sp
 #this is specific for stop and go fMRI data
-def CDN_generate(seed, n_area=6, SNR=0, A_u=True, B_u=True, C_u=True, D_u=True, which_data=-1, scale=1, shifted=1):
+def CDN_generate(seed, seed_y, n_area=6, SNR=0, A_u=True, B_u=True, C_u=True, D_u=True, which_data=-1, scale=1, shifted=1):
 
     """ define a function to generate data from CDN model, please download precomp_0.Rdata 
     para: seed for random number
+          seed_y for random number of noise
           n_area: dimension of the system
           SNR: noise added to the system ,i.e. SNR
           A_u: boolean variable for whether you want to update A
@@ -21,7 +22,7 @@ def CDN_generate(seed, n_area=6, SNR=0, A_u=True, B_u=True, C_u=True, D_u=True, 
           which_data: 1 (negative definite matrix), 2 (total random with negative eigenvalues), 3 (antisymmetric), -1 (default, random select one scenario)
           scale: the scale of A, B, C, D, default=1 i.e original scale
           shifted: time step shift
-    return: fmri data(dimension: n_area * length), fmri_shifted(dimension: n_area * length)-padding 0, stimuli(dimension: J * length)), A, B, C, D
+    return: fmri data(dimension: n_area * length), fmri_shifted(dimension: n_area * length)-padding 0, stimuli(dimension: J * length)), convoluted stimuli, A, B, C, D
     length means the length of time series
     """
     #load precomputed data
@@ -123,27 +124,34 @@ def CDN_generate(seed, n_area=6, SNR=0, A_u=True, B_u=True, C_u=True, D_u=True, 
             k4 = np.dot(A, (x_l[:,i-1] + h * k3)) + tmp + np.dot(C, Q4_1[:,i])
             x_l[:,i] = x_l[:,i-1] + 1.0 * h / 6 * (k1 + 2 * k2+2 * k3 + k4)
         return x_l
-
-    def fmri_data(A, B, C, D, SNR):
-        x_l = ODE_solve(A, B, C, D)
-        z = np.zeros((n_area,l_t_0))
+    def conv(x_l):
+        z = np.zeros((x_l.shape[0],l_t_0))
         for j in range(l_t_0):
-            tmp = np.zeros((n_area, l_t_1))
+            tmp = np.zeros((x_l.shape[0], l_t_1))
             j_1 = int(1 / fold) * j + 1
             in_1 = min(j_1, l_t_1)
             if j_1-in_1-1 >= 0:
                 tmp[:,0:in_1] = x_l[:,(j_1-1):(j_1-1-in_1):-1]
             else:
                 tmp[:,0:in_1] = x_l[:,(j_1-1)::-1]
-            for m in range(n_area):
+            for m in range(x_l.shape[0]):
                 z[m,j] = simps(tmp[m,:] * hrf, t_1)
+        return z
+
+
+    def fmri_data(A, B, C, D, SNR, seed=seed_y):
+        np.random.seed(seed)
+        x_l = ODE_solve(A, B, C, D)
+        z = conv(x_l)
         sd = np.mean(abs(z))
         z = z + np.random.normal(0, sd * SNR, z.shape)
         return z
 
+
     y = fmri_data(A, B, C, D, SNR)
+    u_conv = conv(Q4_1)
     shifted_y = np.zeros(y.shape)
     shifted_y[:,0:(row_n-shifted)] = y[:,shifted::]
 
-    return y, shifted_y, Q4_1[:,::int(1 / fold)], A, B, C, D 
+    return y, shifted_y, Q4_1[:,::int(1 / fold)], u_conv, A, B, C, D 
 
