@@ -55,6 +55,8 @@ def Toy_generate(seed, n_area=1, SNR=0, which_data=1, scale = 1, shifted = 1):
             return np.random.uniform(-1, 1, n)
         if which_kind < 1.0 / 3:
             tmp = -make_sparse_spd_matrix(n_area, 1 - sparsity, smallest_coef=lower_b, largest_coef=upper_b)
+            if n_area == 1:
+                tmp = - np.random.uniform(0.1,  1) * scale
 	elif which_kind < 2.0 / 3:
             while True:
 		lower_b = np.random.uniform(-0.1, 0.1)
