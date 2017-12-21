@@ -18,7 +18,7 @@ def Toy_generate(seed, n_area=1, SNR=0, which_data=1, scale = 1, shifted = 1):
           scale: scale of A, D
           shifted : 1, shifted time step 
           Note: for this toy example, which data must be 1 !!!
-    return: fmri data(dimension: n_area * length), fmri_shifted(dimension: n_area * length)-padding 0,  A, D
+    return: fmri data(dimension: n_area * length), fmri_shifted(dimension: n_area * length)-padding 0,  A, D, x(the orginal data without convolution)
     length means the length of time series
     """
     #
@@ -107,12 +107,12 @@ def Toy_generate(seed, n_area=1, SNR=0, which_data=1, scale = 1, shifted = 1):
                 z[m,j] = simps(tmp[m,:] * hrf, t_1)
         sd = np.mean(abs(z))
         z = z + np.random.normal(0, sd * SNR, z.shape)
-        return z
+        return z, x_l
 
-    y = fmri_data(A, D, SNR)
+    y, x= fmri_data(A, D, SNR)
     shifted_y = np.zeros(y.shape)
     shifted_y[:,0:(row_n-shifted)] = y[:,shifted::]
 
 
-    return y, shifted_y, A, D 
+    return y, shifted_y, A, D, x
 
